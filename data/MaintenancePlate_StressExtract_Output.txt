@@ -1,0 +1,2 @@
+Max Von Mises Stress: 41.59917200 MPa
+Script Runtime: 23.31200004 seconds
