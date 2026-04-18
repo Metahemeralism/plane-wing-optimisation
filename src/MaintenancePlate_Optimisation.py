@@ -10,6 +10,7 @@ model loaded from models/gpr_best_pipeline.pkl.
 """
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import joblib
 import os
@@ -30,7 +31,13 @@ upper_bounds = np.array([0.7,  0.15, 0.07, 0.02])
 
 # Load the trained GPR pipeline (includes scaler + fitted GPR)
 _here = os.path.dirname(os.path.abspath(__file__))
-gpr_pipeline = joblib.load(os.path.join(_here, '..', 'models', 'gpr_best_pipeline.pkl'))
+_root = os.path.join(_here, '..')
+_models_dir = os.path.join(_root, 'models')
+_results_dir = os.path.join(_root, 'results')
+_figures_dir = os.path.join(_root, 'figures')
+os.makedirs(_results_dir, exist_ok=True)
+os.makedirs(_figures_dir, exist_ok=True)
+gpr_pipeline = joblib.load(os.path.join(_models_dir, 'gpr_best_pipeline.pkl'))
 
 # Define the optimization problem class
 class PlateOptimization(Problem):
@@ -82,6 +89,17 @@ masses_pareto, stresses_pareto = pareto_front[:, 0], pareto_front[:, 1]
 all_solutions = np.vstack([gen.pop.get("F") for gen in res.history])
 masses_all, stresses_all = all_solutions[:, 0], all_solutions[:, 1]
 
+# Save Pareto data (front, full history, designs) for later comparison
+pd.DataFrame({'mass_kg': masses_pareto,
+              'stress_mpa': stresses_pareto}).to_csv(
+    os.path.join(_results_dir, 'pareto_front_gpr.csv'), index=False)
+pd.DataFrame({'mass_kg': masses_all,
+              'stress_mpa': stresses_all}).to_csv(
+    os.path.join(_results_dir, 'pareto_all_gpr.csv'), index=False)
+pd.DataFrame(res.X, columns=['W1', 'W2', 'R', 't']).assign(
+    mass_kg=masses_pareto, stress_mpa=stresses_pareto).to_csv(
+    os.path.join(_results_dir, 'pareto_designs_gpr.csv'), index=False)
+
 # Plot the Pareto Front and Sub-Optimal Solutions
 plt.figure(figsize=(8, 6))
 plt.scatter(masses_all, stresses_all, c="gray", alpha=0.25, label="Sub-Optimal Solutions")
@@ -92,5 +110,5 @@ plt.title("GPR Surrogate — NSGA-II Pareto Front")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig("Fig_CW2_ParetoFront_GPR.png", dpi=500)
+plt.savefig(os.path.join(_figures_dir, "Fig_CW2_ParetoFront_GPR.png"), dpi=500)
 plt.show()

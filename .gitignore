@@ -1,0 +1,36 @@
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# ---- IDE / tooling ----
+.vscode/
+.idea/
+.claude/
+.cursor/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Virtual envs ----
+.venv/
+venv/
+env/
+.env
+.python-version
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+.virtual_documents/
+
+# ---- Course materials (copyright - do not publish) ----
+MECH0107_CW2.pdf
+*.cae
