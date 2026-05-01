@@ -1,0 +1,65 @@
+% Generates the surrogate training dataset by running Abaqus FEA across
+% a Sobol-sampled design space and saving results to CSV.
+%
+% Sobol sequences outperformed LHS and random sampling on both AMD and
+% L2* Discrepancy metrics, and require nSamples to be a power of 2.
+%
+% Design variables:
+%   W1 - Plate half-width (m)
+%   W2 - Maintenance port half-width (m)
+%   R  - Maintenance port fillet radius (m)
+%   t  - Plate thickness (m)
+
+clc; clear; close all;
+
+%% Design Variable Bounds (from Table 1 in coursework brief)
+lb = [0.3,  0.10, 0.03, 0.01];  % Lower bounds: [W1, W2, R, t]
+ub = [0.7,  0.15, 0.07, 0.02];  % Upper bounds:  [W1, W2, R, t]
+
+%% Sampling
+nSamples = 256;   % Power of 2 required for Sobol sequence validity
+nVars    = 4;
+
+sobol  = sobolset(nVars);
+X_unit = net(sobol, nSamples);
+X      = lb + X_unit .* (ub - lb);  % Scale to design bounds
+
+%% Pre-allocate Results
+maxVMStress   = zeros(nSamples, 1);  % Maximum von Mises stress (MPa)
+scriptRuntime = zeros(nSamples, 1);  % FEA runtime per sample (seconds)
+
+%% Main Sampling Loop
+fprintf('Starting data generation: %d samples total\n\n', nSamples);
+totalStartTime = tic;
+
+for i = 1:nSamples
+    W1 = X(i, 1);
+    W2 = X(i, 2);
+    R  = X(i, 3);
+    t  = X(i, 4);
+
+    fprintf('Sample %3d / %d:  W1=%.4f  W2=%.4f  R=%.4f  t=%.4f  ...  ', ...
+            i, nSamples, W1, W2, R, t);
+
+    [maxVMStress(i), scriptRuntime(i)] = ...
+        MaintenancePlate_StressExtract_Function(W1, W2, R, t);
+
+    fprintf('Stress = %.4f MPa  (Runtime: %.1f s)\n', ...
+            maxVMStress(i), scriptRuntime(i));
+end
+
+totalTime = toc(totalStartTime);
+fprintf('\nAll %d samples completed in %.1f seconds (%.1f min)\n', ...
+        nSamples, totalTime, totalTime/60);
+
+%% Save Dataset
+trainingData = [X, maxVMStress];
+outputFile   = sprintf('TrainingData_%d.csv', nSamples);
+header       = 'W1,W2,R,t,MaxVonMisesStress_MPa';
+
+fid = fopen(outputFile, 'w');
+fprintf(fid, '%s\n', header);
+fclose(fid);
+
+writematrix(trainingData, outputFile, 'WriteMode', 'append');
+fprintf('Training data saved to: %s\n', outputFile);

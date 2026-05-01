@@ -26,10 +26,10 @@ rho = 2700  # Density of aluminum alloy (kg/m^3)
 
 # Variable bounds from Table 1 of the brief
 # W1: Plate half-width (m), W2: Maintenance port half-width (m), R: Fillet radius (m), t: Plate thickness (m)
-lower_bounds = np.array([0.3,  0.10, 0.03, 0.01])
-upper_bounds = np.array([0.7,  0.15, 0.07, 0.02])
+lower_bounds = np.array([0.3,  0.10, 0.03, 0.01])  # Minimum values
+upper_bounds = np.array([0.7,  0.15, 0.07, 0.02])  # Maximum values
 
-# Load the trained GPR pipeline (includes scaler + fitted GPR)
+# Resolve paths relative to this script so it runs from any working directory
 _here = os.path.dirname(os.path.abspath(__file__))
 _root = os.path.join(_here, '..')
 _models_dir = os.path.join(_root, 'models')
@@ -37,16 +37,18 @@ _results_dir = os.path.join(_root, 'results')
 _figures_dir = os.path.join(_root, 'figures')
 os.makedirs(_results_dir, exist_ok=True)
 os.makedirs(_figures_dir, exist_ok=True)
+
+# Load the trained GPR pipeline (includes StandardScaler + fitted GPR)
 gpr_pipeline = joblib.load(os.path.join(_models_dir, 'gpr_best_pipeline.pkl'))
 
 # Define the optimization problem class
 class PlateOptimization(Problem):
     def __init__(self):
-        super().__init__(n_var=4,    # Number of design variables
-                         n_obj=2,    # Number of objectives (mass and stress)
-                         n_constr=0, # No constraints in this problem
-                         xl=lower_bounds,
-                         xu=upper_bounds)
+        super().__init__(n_var=4,     # Number of design variables
+                         n_obj=2,     # Number of objectives (mass and stress)
+                         n_constr=0,  # No constraints in this problem
+                         xl=lower_bounds,  # Lower bounds for variables
+                         xu=upper_bounds)  # Upper bounds for variables
 
     def _evaluate(self, X, out, *args, **kwargs):
         # Extract design variables from the input matrix
@@ -63,8 +65,8 @@ class PlateOptimization(Problem):
 
 # Define the optimization algorithm (NSGA-II)
 algorithm = NSGA2(
-    pop_size=100,  # Population size
-    sampling=LHS(),  # Use Latin Hypercube Sampling for better diversity in initial population
+    pop_size=100,                     # Population size
+    sampling=LHS(),                   # Use Latin Hypercube Sampling for better diversity in initial population
     crossover=SBX(prob=0.9, eta=15),  # Simulated Binary Crossover (SBX)
     mutation=PM(prob=0.2, eta=20),    # Polynomial Mutation (PM)
     eliminate_duplicates=True         # Remove duplicate solutions
@@ -76,13 +78,13 @@ problem = PlateOptimization()
 # Run the optimization process
 res = minimize(problem,
                algorithm,
-               ("n_gen", 100),  # Number of generations for evolution
+               ("n_gen", 100),    # Number of generations for evolution
                seed=1,
                verbose=True,
                save_history=True)  # Save full optimization history for analysis
 
 # Extract the final Pareto-optimal solutions
-pareto_front = res.F
+pareto_front = res.F  # Objective values of Pareto-optimal solutions
 masses_pareto, stresses_pareto = pareto_front[:, 0], pareto_front[:, 1]
 
 # Extract all sub-optimal solutions from optimization history
@@ -110,5 +112,5 @@ plt.title("GPR Surrogate — NSGA-II Pareto Front")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(os.path.join(_figures_dir, "Fig_CW2_ParetoFront_GPR.png"), dpi=500)
+plt.savefig(os.path.join(_figures_dir, "Fig_CW2_ParetoFront_GPR.png"), dpi=500)  # Save the figure
 plt.show()
